@@ -1,0 +1,15 @@
+node_modules/
+.env*
+!.env.example
+functions/.env*
+!functions/.env.example
+functions/node_modules/
+.firebase/
+.vercel/
+.agents/
+.windsurf/
+skills-lock.json
+email-test.html
+*.local
+*.log
+github-upload/
