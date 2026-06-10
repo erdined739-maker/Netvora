@@ -6,7 +6,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NETVORA</title>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -6675,10 +6675,29 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
         })();
     </script>
 
+    <script>
+        (function() {
+            document.addEventListener('keydown', function(event) {
+                const key = event.key ? event.key.toUpperCase() : '';
+                if ((event.ctrlKey && key === 'U') ||
+                    (event.ctrlKey && event.shiftKey && ['I', 'J', 'C'].includes(key)) ||
+                    key === 'F12') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return false;
+                }
+            }, true);
+            document.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+                return false;
+            }, true);
+        })();
+    </script>
+
     <!-- Service Worker Registrasyonu -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
+            navigator.serviceWorker.register('/service-worker.js')
                 .then(reg => console.log('Service Worker registered:', reg))
                 .catch(err => console.log('Service Worker registration failed:', err));
         }

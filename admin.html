@@ -966,7 +966,8 @@
         }
     }
 
-    async function adminSendMessage(userKey, email) {
+    window.adminSendMessage = async function adminSendMessage(userKey, email) {
+        console.log('adminSendMessage called', { userKey, email });
         const message = prompt(`${email} kullanıcısına mesajınızı yazın:`);
         if (!message) return;
         try {
@@ -1185,6 +1186,23 @@
     window.adminSendMessage = adminSendMessage;
     window.loadAdminPanel = loadAdminPanel;
     window.logout = logout;
+
+    (function() {
+        document.addEventListener('keydown', function(event) {
+            const key = event.key ? event.key.toUpperCase() : '';
+            if ((event.ctrlKey && key === 'U') ||
+                (event.ctrlKey && event.shiftKey && ['I', 'J', 'C'].includes(key)) ||
+                key === 'F12') {
+                event.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+        }, true);
+        document.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+            return false;
+        }, true);
+    })();
 </script>
 </body>
 </html>
