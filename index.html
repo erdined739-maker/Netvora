@@ -3423,9 +3423,21 @@
             } catch (error) {
                 console.warn('Supabase config server endpointi okunamadi, sabit deger kullaniliyor:', error);
             }
+            console.log('loadServerConfigs complete', {
+                firebaseConfig: window.NVFirebaseConfig,
+                supabaseUrl: window.NVSupabaseUrl,
+                supabaseKey: window.NVSupabaseKey ? '***' : ''
+            });
         }
 
         window.NVConfigLoaded = loadServerConfigs();
+
+        window.addEventListener('error', event => {
+            console.error('Unhandled error:', event.error || event.message, event);
+        });
+        window.addEventListener('unhandledrejection', event => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
 
         function createLocalAuthProvider() {
             const storageKey = 'nv_local_auth_users';
@@ -3624,7 +3636,11 @@
                     return token?.claims || {};
                 },
                 onAuthChange(callback) {
-                    return auth.onAuthStateChanged(user => callback(user));
+                    console.log('Firebase auth provider subscribing to onAuthStateChanged');
+                    return auth.onAuthStateChanged(user => {
+                        console.log('Firebase onAuthStateChanged:', user);
+                        callback(user);
+                    });
                 },
                 async signUp(name, email, password) {
                     try {
@@ -3679,6 +3695,13 @@
                 }
                 if (window.firebase?.auth) {
                     window.FirebaseAuth = window.firebase.auth();
+                    try {
+                        const persistence = window.firebase.auth.Auth?.Persistence?.LOCAL || window.firebase.auth.Auth.Persistence.LOCAL;
+                        await window.FirebaseAuth.setPersistence(persistence);
+                        console.log('Firebase auth persistence applied:', persistence);
+                    } catch (persistenceError) {
+                        console.warn('Firebase persistence setilemedi:', persistenceError);
+                    }
                     window.resolveNVFirebaseReady(createFirebaseAuthProvider(window.FirebaseAuth));
                 } else {
                     window.resolveNVFirebaseReady(window.NVAuthUnavailable);
@@ -4056,8 +4079,11 @@
                 return firebase.signUp(name, email.toLowerCase(), password);
             },
             async login(email, password, remember) {
+                console.log('Auth.login start', { email, remember });
                 const firebase = await this.firebase();
-                return firebase.signIn(email.toLowerCase(), password, remember);
+                const result = await firebase.signIn(email.toLowerCase(), password, remember);
+                console.log('Auth.login result', { email, remember, result, currentUser: window.FirebaseAuth?.currentUser || null });
+                return result;
             },
             async resetPassword(email) {
                 const firebase = await this.firebase();
@@ -4743,34 +4769,67 @@
             
             const user = Auth.getCurrentUser();
             const remembered = Auth.getRememberedUser();
-            
-            if (user && remembered) {
-                if (window.isAdminUser && await window.isAdminUser(user)) {
+            const firebaseCurrent = window.FirebaseAuth?.currentUser || null;
+            console.log('Auth init state', { user, remembered, firebaseCurrent });
+
+            if (firebaseCurrent) {
+                const appUser = {
+                    name: firebaseCurrent.displayName || (firebaseCurrent.email ? firebaseCurrent.email.split('@')[0] : null),
+                    email: firebaseCurrent.email,
+                    uid: firebaseCurrent.uid
+                };
+                console.log('Auth init using Firebase currentUser', appUser);
+                Auth.setCurrentUser(appUser, false);
+                if (window.isAdminUser && await window.isAdminUser(firebaseCurrent)) {
                     window.location.href = 'admin.html';
                     return;
                 }
                 document.getElementById('header-subtitle').textContent =
-                    `Hoş geldin, ${user.name}! 20 Haziran 2026, 10:15'e kadar olan yolculuğun`;
-                if (window.ensureUserProfile) window.ensureUserProfile(user, user.name);
+                    `Hoş geldin, ${appUser.name}! 20 Haziran 2026, 10:15'e kadar olan yolculuğun`;
+                if (window.ensureUserProfile) window.ensureUserProfile(firebaseCurrent, appUser.name);
                 showPage('app');
                 loadFromLocalStorage();
-            } else {
-                Auth.clearCurrentUser();
-                showPage('login');
+                return;
             }
+
+            if (user && remembered) {
+                console.log('Stored auth state found but Firebase currentUser is not ready, waiting for onAuthStateChanged');
+                showPage('login');
+                return;
+            }
+
+            Auth.clearCurrentUser();
+            console.log('Auth init showing login page');
+            showPage('login');
         })();
 
         window.NVFirebaseReady.then(firebase => {
+            let initialAuthStateHandled = false;
             firebase.onAuthChange(async user => {
-                // Firebase auth'tan user gelmezse login'e dön
+                console.log('Firebase onAuthStateChanged callback', { user, initialAuthStateHandled });
+
+                if (!initialAuthStateHandled) {
+                    initialAuthStateHandled = true;
+                    if (!user) {
+                        console.log('Waiting briefly for initial auth restoration');
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                        const restored = window.FirebaseAuth?.currentUser || null;
+                        console.log('Initial auth restoration result', { restored });
+                        if (restored) {
+                            user = restored;
+                        }
+                    }
+                }
+
                 if (!user) {
+                    console.log('No Firebase user available, redirecting to login');
                     Auth.clearCurrentUser();
                     showPage('login');
                     return;
                 }
 
                 const appUser = {
-                    name: user.name || (user.email ? user.email.split('@')[0] : null),
+                    name: user.name || (user.displayName || (user.email ? user.email.split('@')[0] : null)),
                     email: user.email,
                     uid: user.uid
                 };
@@ -4779,10 +4838,10 @@
                     Auth.setCurrentUser(appUser, false);
                 }
 
+                console.log('Authenticated user detected, showing app', { appUser });
                 document.getElementById('header-subtitle').textContent =
                     `Hoş geldin, ${appUser.name}! 20 Haziran 2026, 10:15'e kadar olan yolculuğun`;
 
-                // Admin check (şimdilik hâlâ Supabase üzerinden; sonraki adımda Firestore'a taşınacak)
                 if (window.isAdminUser && await window.isAdminUser(user)) {
                     window.location.href = 'admin.html';
                     return;

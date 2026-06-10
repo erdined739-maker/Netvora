@@ -15,3 +15,6 @@ email-test.html
 *.log
 supabase/.temp/
 github-upload/
+
+.vercel
+.env*
