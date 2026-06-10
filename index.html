@@ -4023,7 +4023,7 @@
             },
             getRememberedUser() {
                 try {
-                    return JSON.parse(localStorage.getItem('nv_current') || 'null');
+                    return JSON.parse(localStorage.getItem('nv_current') || sessionStorage.getItem('nv_current') || 'null');
                 } catch {
                     return null;
                 }
@@ -4763,8 +4763,7 @@
         window.NVFirebaseReady.then(firebase => {
             firebase.onAuthChange(async user => {
                 // Firebase auth'tan user gelmezse login'e dön
-                const remembered = Auth.getRememberedUser();
-                if (!user || !remembered) {
+                if (!user) {
                     Auth.clearCurrentUser();
                     showPage('login');
                     return;
@@ -4776,7 +4775,10 @@
                     uid: user.uid
                 };
 
-                Auth.setCurrentUser(appUser, true);
+                if (!Auth.getRememberedUser()) {
+                    Auth.setCurrentUser(appUser, false);
+                }
+
                 document.getElementById('header-subtitle').textContent =
                     `Hoş geldin, ${appUser.name}! 20 Haziran 2026, 10:15'e kadar olan yolculuğun`;
 
