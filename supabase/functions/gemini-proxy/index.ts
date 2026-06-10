@@ -49,7 +49,7 @@ serve(async (req) => {
 
   // Health check
   if (path === '/api/health' && req.method === 'GET') {
-    return new Response(JSON.stringify({ ok: true, time: Date.now() }), {
+    return new Response(JSON.stringify({ ok: true, hasGeminiKey: !!getGeminiKey(), time: Date.now() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

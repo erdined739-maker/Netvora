@@ -3302,7 +3302,7 @@
                 </div>
             </section>
 
-            <!-- ===== ADMIN PAGE ===== -->
+            <!-- ===== git status PAGE ===== -->
 
 
             <footer>
@@ -3382,20 +3382,50 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
     <script>
-        window.NVSupabaseUrl = "";
-        window.NVSupabaseKey = "";
-        window.NVSupabase = null;
+        window.NVSupabaseUrl = "https://fzqxamdkeojwmiaqvazr.supabase.co";
+        window.NVSupabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6cXhhbWRrZW9qd21pYXF2YXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODI3MjUsImV4cCI6MjA5NjA1ODcyNX0._5tbiuj10cdTvkf6k0IjlMVYXNZXxuIo7S_v7g5JTU4";
+        window.NVSupabase = null; // Supabase veri modulu devre disi; sadece Gemini proxye ait URL/key kullaniliyor
 
-        const NVFirebaseConfig = {
-            apiKey: "",
-            authDomain: "",
-            projectId: "",
-            storageBucket: "",
-            messagingSenderId: "",
-            appId: "",
+        window.NVFirebaseConfig = {
+            apiKey: "AIzaSyCxXRmg2aMYXD90bi6FZgKlc-WOz4ZE9Gg",
+            authDomain: "netvora-838ee.firebaseapp.com",
+            projectId: "netvora-838ee",
+            storageBucket: "netvora-838ee.firebasestorage.app",
+            messagingSenderId: "107956835981",
+            appId: "1:107956835981:web:7a008de3ede40048b334c4",
             measurementId: ""
         };
+
+        async function loadServerConfigs() {
+            const fallbackFirebaseConfig = window.NVFirebaseConfig;
+            try {
+                const response = await fetch('/firebase-config');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config?.apiKey && config?.authDomain && config?.projectId) {
+                        window.NVFirebaseConfig = config;
+                    }
+                }
+            } catch (error) {
+                console.warn('Firebase config server endpointi okunamadi, fallback kullaniliyor:', error);
+                window.NVFirebaseConfig = fallbackFirebaseConfig;
+            }
+
+            try {
+                const response = await fetch('/supabase-config');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config?.url) window.NVSupabaseUrl = config.url;
+                    if (config?.anonKey) window.NVSupabaseKey = config.anonKey;
+                }
+            } catch (error) {
+                console.warn('Supabase config server endpointi okunamadi, sabit deger kullaniliyor:', error);
+            }
+        }
+
+        window.NVConfigLoaded = loadServerConfigs();
 
         function createLocalAuthProvider() {
             const storageKey = 'nv_local_auth_users';
@@ -3638,27 +3668,44 @@
         });
         window.NVSupabaseAuth = null;
         window.SupabaseAuth = null;
-        try {
-            if (window.firebase?.apps?.length) {
-                window.NVFirebaseApp = window.firebase.app();
-            } else if (window.firebase) {
-                window.NVFirebaseApp = window.firebase.initializeApp(NVFirebaseConfig);
+
+        (async function initFirebaseAuth() {
+            try {
+                await window.NVConfigLoaded;
+                if (window.firebase?.apps?.length) {
+                    window.NVFirebaseApp = window.firebase.app();
+                } else if (window.firebase) {
+                    window.NVFirebaseApp = window.firebase.initializeApp(window.NVFirebaseConfig);
+                }
+                if (window.firebase?.auth) {
+                    window.FirebaseAuth = window.firebase.auth();
+                    window.resolveNVFirebaseReady(createFirebaseAuthProvider(window.FirebaseAuth));
+                } else {
+                    window.resolveNVFirebaseReady(window.NVAuthUnavailable);
+                }
+            } catch (error) {
+                console.warn('Firebase auth baslatilamadi:', error);
+                window.resolveNVFirebaseReady(window.NVAuthUnavailable);
             }
-            if (window.firebase?.auth) {
-                window.FirebaseAuth = window.firebase.auth();
-                window.resolveNVFirebaseReady(createFirebaseAuthProvider(window.FirebaseAuth));
-            }
-        } catch (error) {
-            console.warn('Firebase auth baslatilamadi:', error);
-            window.resolveNVFirebaseReady(window.NVAuthUnavailable);
-        }
+        })();
     </script>
 
     <!-- ===== SUPABASE + ADMIN + LEADERBOARD MODULE ===== -->
     <script>
-        const db = window.NVSupabase;
+        function createDisabledSupabaseClient() {
+            const client = new Proxy(() => client, {
+                get(target, prop) {
+                    if (prop === 'then') return undefined;
+                    if (prop === 'data' || prop === 'error') return null;
+                    return () => client;
+                }
+            });
+            return client;
+        }
+
+        const db = createDisabledSupabaseClient();
         window.NVFirestore = db;
-        window.NVSupabaseDataEnabled = !!(db && typeof db.from === 'function');
+        window.NVSupabaseDataEnabled = false;
 
         function hasSupabaseDataClient() {
             return window.NVSupabaseDataEnabled;
@@ -3674,6 +3721,38 @@
         }
 
         // ---- ADMIN CHECK ----
+        async function getFirebaseUserRoleDoc(userOrEmail) {
+            if (!window.firebase?.firestore) return null;
+
+            const normalizedEmail = typeof userOrEmail === 'string' ? userOrEmail.trim().toLowerCase() :
+                (userOrEmail?.email ? userOrEmail.email.trim().toLowerCase() : '');
+            const uid = typeof userOrEmail === 'object' ? (userOrEmail.uid || userOrEmail.id) : null;
+            const firestore = window.firebase.firestore();
+
+            try {
+                if (uid) {
+                    const snap = await firestore.collection('users').doc(uid).get();
+                    if (snap.exists) return { id: snap.id, ...snap.data() };
+                }
+            } catch (e) {
+                console.warn('Firebase kullanici rolu uid ile okunamadi:', e);
+            }
+
+            try {
+                if (normalizedEmail) {
+                    const snap = await firestore.collection('users').where('email', '==', normalizedEmail).limit(1).get();
+                    if (!snap.empty) {
+                        const doc = snap.docs[0];
+                        return { id: doc.id, ...doc.data() };
+                    }
+                }
+            } catch (e) {
+                console.warn('Firebase kullanici rolu email ile okunamadi:', e);
+            }
+
+            return null;
+        }
+
         function getUserDocKey(userOrEmail) {
             if (!userOrEmail) return null;
             if (typeof userOrEmail === 'string') {
@@ -3699,6 +3778,9 @@
             } catch(e) {
                 console.warn('Admin claim kontrolu basarisiz:', e);
             }
+
+            const firebaseRoleDoc = await getFirebaseUserRoleDoc(userOrEmail);
+            if (hasAdminFlag(firebaseRoleDoc)) return true;
 
             if (!hasSupabaseDataClient()) return false;
 
@@ -5695,6 +5777,16 @@
             return '';
         }
 
+        function getAIRequestHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const key = getSupabaseKey();
+            if (key) {
+                headers.Authorization = 'Bearer ' + key;
+                headers.apikey = key;
+            }
+            return headers;
+        }
+
         function getAIPlanEndpoint() {
             return getSupabaseUrl() + '/api/plan';
         }
@@ -5727,10 +5819,17 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
         async function readAIPlanResponse(response) {
             const contentType = response.headers.get('content-type') || '';
             if (contentType.includes('application/json')) {
-                return response.json();
+                const data = await response.json();
+                if (!response.ok && (response.status === 401 || response.status === 403) && !data.error) {
+                    data.error = 'AI Supabase Function yetki kontrolunde takildi. gemini-proxy deploy/config ayarlarini kontrol edin.';
+                }
+                return data;
             }
 
             const text = await response.text();
+            if (response.status === 401 || response.status === 403) {
+                return { error: 'AI Supabase Function yetki kontrolunde takildi. gemini-proxy deploy/config ayarlarini kontrol edin.' };
+            }
             if (response.status === 404) {
                 return { error: 'AI Supabase Edge Function bulunamadi. gemini-proxy deploy edilmeli.' };
             }
@@ -5774,10 +5873,7 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
             try {
                 const response = await fetch(getAIAskEndpoint(), {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + getSupabaseKey()
-                    },
+                    headers: getAIRequestHeaders(),
                     body: JSON.stringify({
                         prompt: `Ogrencinin sorusu: ${question}\n\nOgrenci profili:\n${JSON.stringify(collectAIProfile(), null, 2)}`,
                         system: 'YKS icin kisa, net ve uygulanabilir cevap veren bir egitim kocusun.'
@@ -5802,10 +5898,7 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
             try {
                 const response = await fetch(getAIPlanEndpoint(), {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + getSupabaseKey()
-                    },
+                    headers: getAIRequestHeaders(),
                     body: JSON.stringify({ prompt: buildAIPlanPrompt(collectAIProfile()) })
                 });
                 const data = await readAIPlanResponse(response);
@@ -6345,10 +6438,7 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
                     getSupabaseUrl() + '/api/analyzePhoto',
                     {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + getSupabaseKey()
-                        },
+                        headers: getAIRequestHeaders(),
                         body: JSON.stringify({ base64Data, mimeType, questionStart, questionEnd })
                     }
                 );

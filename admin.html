@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="theme-color" content="#1a1d27">
+    <style>
+        :root {
+            --primary: #7c6af7;
+            --primary-light: rgba(124,106,247,0.18);
+            --accent: #06b6d4;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --bg: #12141c;
+            --surface: #1a1d27;
+            --card: #1e2130;
+            --card2: #252838;
+            --border: rgba(255,255,255,0.07);
+            --text: #e8eaf0;
+            --muted: #8b90a7;
+            --muted2: #5c6180;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── LAYOUT ── */
+        .app-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 220px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 28px 0 20px;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 20px 28px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo .logo-icon {
+            width: 38px; height: 38px;
+            border-radius: 12px;
+            background: var(--primary);
+            display: grid; place-items: center;
+            color: #fff; font-size: 1rem;
+        }
+
+        .sidebar-logo span {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s;
+            text-decoration: none;
+        }
+
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .nav-item.active { background: var(--primary-light); color: var(--primary); }
+        .nav-item i { width: 18px; text-align: center; font-size: 0.9rem; }
+
+        .sidebar-bottom {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-bottom .nav-item { color: var(--danger); }
+        .sidebar-bottom .nav-item:hover { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+        /* ── MAIN ── */
+        .main {
+            margin-left: 220px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 28px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            position: sticky; top: 0; z-index: 50;
+        }
+
+        .topbar-left h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .topbar-left p {
+            font-size: 0.83rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .admin-badge .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+        }
+
+        /* ── PAGE CONTENT ── */
+        .page-content {
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ── STAT CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-card.users .stat-value { color: #7c6af7; }
+        .stat-card.sessions .stat-value { color: #22c55e; }
+        .stat-card.active .stat-value { color: #06b6d4; }
+
+        .stat-card .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: grid; place-items: center;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .stat-card.users .stat-icon { background: rgba(124,106,247,0.15); color: #7c6af7; }
+        .stat-card.sessions .stat-icon { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .stat-card.active .stat-icon { background: rgba(6,182,212,0.15); color: #06b6d4; }
+
+        /* ── SECTION CARDS ── */
+        .section-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .section-header p {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* ── SEARCH ── */
+        .search-wrap {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-wrap input {
+            width: 100%;
+            background: var(--card2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.18s;
+        }
+
+        .search-wrap input::placeholder { color: var(--muted2); }
+        .search-wrap input:focus { border-color: var(--primary); }
+
+        /* ── USER LIST ── */
+        #admin-users-list { display: flex; flex-direction: column; }
+
+        .user-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            gap: 16px;
+            transition: background 0.15s;
+        }
+
+        .user-row:last-child { border-bottom: none; }
+        .user-row:hover { background: rgba(255,255,255,0.025); }
+
+        .user-row-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .avatar {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: var(--card2);
+            border: 2px solid var(--border);
+            display: grid; place-items: center;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .user-info { min-width: 0; }
+        .user-info strong { display: block; font-size: 0.92rem; font-weight: 600; }
+        .user-info small { color: var(--muted); font-size: 0.8rem; }
+
+        .user-meta-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .meta-pill {
+            border-radius: 8px;
+            padding: 3px 9px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .meta-pill.points { background: rgba(124,106,247,0.15); color: #a89ff8; }
+        .meta-pill.sessions { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .meta-pill.lastseen { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+        .user-row-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* ── STATUS CHIPS ── */
+        .status-chip {
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .status-active { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .status-passive { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .status-banned { background: rgba(239,68,68,0.15); color: #f87171; }
+
+        /* ── BUTTONS ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 7px 13px;
+            transition: all 0.15s;
+        }
+
+        .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+        .btn.secondary { background: rgba(255,255,255,0.07); color: var(--text); }
+        .btn.primary { background: var(--primary); color: #fff; }
+        .btn.danger { background: rgba(239,68,68,0.15); color: #f87171; }
+        .btn.warning { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .btn.success { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .btn.accent { background: rgba(6,182,212,0.15); color: var(--accent); }
+
+        /* ── SESSION TABLE ── */
+        .session-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .session-table th, .session-table td {
+            padding: 13px 24px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.88rem;
+        }
+
+        .session-table th {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: var(--card2);
+        }
+
+        .session-table tbody tr:last-child td { border-bottom: none; }
+        .session-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+        .session-table td { color: var(--text); }
+
+        /* ── LOADING ── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #admin-users-loading {
+            padding: 28px;
+            text-align: center;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 28px; height: 28px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* ── NOTIFICATION ── */
+        .notification {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            padding: 13px 18px;
+            border-radius: 12px;
+            background: var(--card2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.22s, transform 0.22s;
+            z-index: 999;
+        }
+
+        .notification.show { opacity: 1; transform: translateY(0); }
+
+        /* ── MOBILE NAV (bottom tabs) ── */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+            z-index: 200;
+        }
+
+        .mobile-nav-inner {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .mobile-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 6px;
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .mobile-tab i { font-size: 1.1rem; }
+        .mobile-tab.active { color: var(--primary); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .mobile-nav { display: block; }
+
+            .page-content {
+                padding: 16px 14px calc(70px + env(safe-area-inset-bottom, 0px));
+                gap: 16px;
+            }
+
+            .topbar { padding: 14px 16px; }
+            .topbar-left h1 { font-size: 1.1rem; }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .stats-grid .stat-card:last-child {
+                grid-column: span 2;
+            }
+
+            .user-row { padding: 12px 14px; }
+            .search-wrap { padding: 12px 14px; }
+            .section-header { padding: 14px 16px; }
+
+            .user-row-right {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 6px;
+                max-width: 160px;
+            }
+
+            .session-table th, .session-table td {
+                padding: 10px 14px;
+                font-size: 0.82rem;
+            }
+
+            .notification {
+                left: 12px; right: 12px; bottom: 80px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid .stat-card:last-child { grid-column: span 2; }
+            .stat-card { padding: 16px; }
+            .stat-card .stat-value { font-size: 1.6rem; }
+        }
+
+        /* ── AUTH LOADING SCREEN ── */
+        #auth-loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 9999;
+        }
+
+        #auth-loading .auth-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        #auth-loading p {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .app-shell { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- AUTH LOADING SCREEN -->
+<div id="auth-loading">
+    <div class="auth-spinner"></div>
+    <p>Kimlik doğrulanıyor...</p>
+</div>
+
+<div class="app-shell">
+
+    <!-- SIDEBAR (desktop) -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon"><i class="fas fa-shield-alt"></i></div>
+            <span>Admin Panel</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a class="nav-item active" href="#">
+                <i class="fas fa-house"></i> Dashboard
+            </a>
+            <a class="nav-item" href="#">
+                <i class="fas fa-users"></i> Kullanıcılar
+            </a>
+            <a class="nav-item" href="#">
+                <i class="fas fa-clock-rotate-left"></i> Oturum Logu
+            </a>
+            <a class="nav-item" href="index.html">
+                <i class="fas fa-arrow-left"></i> Ana Sayfa
+            </a>
+        </nav>
+        <div class="sidebar-bottom">
+            <a class="nav-item" href="#" onclick="logout(); return false;">
+                <i class="fas fa-sign-out-alt"></i> Çıkış Yap
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <!-- TOP BAR -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <h1>Admin Panel</h1>
+                <p>Supabase kullanıcı yönetimi</p>
+            </div>
+            <div class="topbar-right">
+                <button class="btn secondary" onclick="loadAdminPanel()">
+                    <i class="fas fa-rotate"></i> Yenile
+                </button>
+                <div class="admin-badge">
+                    <div class="dot"></div>
+                    Admin
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content">
+
+            <!-- STATS -->
+            <div class="stats-grid">
+                <div class="stat-card users">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div>
+                        <div class="stat-label">Toplam Kullanıcı</div>
+                        <div class="stat-value" id="admin-total-users">—</div>
+                    </div>
+                </div>
+                <div class="stat-card sessions">
+                    <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+                    <div>
+                        <div class="stat-label">Toplam Oturum</div>
+                        <div class="stat-value" id="admin-total-sessions">—</div>
+                    </div>
+                </div>
+                <div class="stat-card active">
+                    <div class="stat-icon"><i class="fas fa-circle-dot"></i></div>
+                    <div>
+                        <div class="stat-label">Şu An Aktif</div>
+                        <div class="stat-value" id="admin-current-active">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USER MANAGEMENT -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h2>Kullanıcı Yönetimi</h2>
+                        <p>Kullanıcıları düzenle, mesaj gönder, pasife al veya banla.</p>
+                    </div>
+                </div>
+                <div class="search-wrap">
+                    <input id="admin-search-input" type="text" placeholder="Kullanıcı ara...">
+                </div>
+                <div id="admin-users-loading" style="display:none;">
+                    <div class="spinner"></div>
+                </div>
+                <div id="admin-users-list"></div>
+            </div>
+
+            <!-- SESSION LOG -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h2>Oturum Logu</h2>
+                        <p>Aktif ve geçmiş kullanıcı oturumları</p>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="session-table">
+                        <thead>
+                            <tr>
+                                <th>Kullanıcı</th>
+                                <th>Giriş</th>
+                                <th>Çıkış</th>
+                                <th>Süre</th>
+                            </tr>
+                        </thead>
+                        <tbody id="session-log-body">
+                            <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-nav">
+    <div class="mobile-nav-inner">
+        <div class="mobile-tab active"><i class="fas fa-house"></i> Home</div>
+        <div class="mobile-tab"><i class="fas fa-users"></i> Users</div>
+        <div class="mobile-tab"><i class="fas fa-clock-rotate-left"></i> Logs</div>
+        <div class="mobile-tab" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıkış</div>
+    </div>
+</nav>
+
+<div class="notification" id="admin-notification"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script>
+    const SUPABASE_URL = "https://upjxnnxudukygkdgimdo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwanhubnh1ZHVreWdrZGdpbWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTY4MjksImV4cCI6MjA5NDk5MjgyOX0.YlBGUt7DPkb0D9a9JuauGzEJ50d_p1xSD16Lt_xWdzc";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const db = supabaseClient;
+    const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyCxXRmg2aMYXD90bi6FZgKlc-WOz4ZE9Gg",
+        authDomain: "netvora-838ee.firebaseapp.com",
+        projectId: "netvora-838ee",
+        storageBucket: "netvora-838ee.firebasestorage.app",
+        messagingSenderId: "107956835981",
+        appId: "1:107956835981:web:7a008de3ede40048b334c4"
+    };
+    let firebaseAuth = null;
+
+    function showNotification(message, isError = false) {
+        const note = document.getElementById('admin-notification');
+        note.textContent = message;
+        note.style.background = isError ? 'rgba(239,68,68,0.18)' : 'var(--card2)';
+        note.style.color = isError ? '#f87171' : 'var(--text)';
+        note.classList.add('show');
+        clearTimeout(window.adminNotificationTimeout);
+        window.adminNotificationTimeout = setTimeout(() => note.classList.remove('show'), 3200);
+    }
+
+    function hasAdminFlag(data) {
+        if (!data || data.active === false) return false;
+        return data.admin === true || data.isAdmin === true || data.role === 'admin' || data.role === 'owner' ||
+            (Array.isArray(data.roles) && data.roles.includes('admin'));
+    }
+
+    async function getFirebaseUserRoleDoc(userOrEmail) {
+        if (!window.firebase?.firestore) return null;
+
+        const normalizedEmail = typeof userOrEmail === 'string' ? userOrEmail.trim().toLowerCase() :
+            (userOrEmail?.email ? userOrEmail.email.trim().toLowerCase() : '');
+        const uid = typeof userOrEmail === 'object' ? (userOrEmail.uid || userOrEmail.id) : null;
+
+        try {
+            await initFirebaseAuth();
+            const firestore = window.firebase.firestore();
+
+            if (uid) {
+                const snap = await firestore.collection('users').doc(uid).get();
+                if (snap.exists) return { id: snap.id, ...snap.data() };
+            }
+
+            if (normalizedEmail) {
+                const snap = await firestore.collection('users').where('email', '==', normalizedEmail).limit(1).get();
+                if (!snap.empty) {
+                    const doc = snap.docs[0];
+                    return { id: doc.id, ...doc.data() };
+                }
+            }
+        } catch (e) {
+            console.warn('Firebase kullanici rolu okunamadi:', e);
+        }
+
+        return null;
+    }
+
+    async function loadFirebaseConfig() {
+        try {
+            const response = await fetch('/firebase-config', { cache: 'no-store' });
+            if (!response.ok) return null;
+            const config = await response.json();
+            return config?.apiKey && config?.projectId ? config : FIREBASE_CONFIG;
+        } catch (e) {
+            console.warn('Firebase config okunamadi:', e);
+            return FIREBASE_CONFIG;
+        }
+    }
+
+    async function initFirebaseAuth() {
+        if (firebaseAuth) return firebaseAuth;
+        if (!window.firebase?.auth) return null;
+
+        const config = await loadFirebaseConfig();
+        if (!config) return null;
+
+        try {
+            if (!window.firebase.apps.length) {
+                window.firebase.initializeApp(config);
+            }
+            firebaseAuth = window.firebase.auth();
+            return firebaseAuth;
+        } catch (e) {
+            console.warn('Firebase auth baslatilamadi:', e);
+            return null;
+        }
+    }
+
+    function waitForFirebaseUser(auth) {
+        return new Promise(resolve => {
+            const unsubscribe = auth.onAuthStateChanged(user => {
+                unsubscribe();
+                resolve(user || null);
+            });
+        });
+    }
+
+    async function getFirebaseAdminUser() {
+        const auth = await initFirebaseAuth();
+        if (!auth) return null;
+        const user = auth.currentUser || await waitForFirebaseUser(auth);
+        if (!user) return null;
+
+        try {
+            const token = await user.getIdTokenResult(true);
+            if (hasAdminFlag(token?.claims)) return user;
+        } catch (e) {
+            console.warn('Firebase admin claim kontrolu basarisiz:', e);
+        }
+
+        return await isAdminUser(user) ? user : null;
+    }
+
+    function getUserDocKey(userOrEmail) {
+        if (!userOrEmail) return null;
+        if (typeof userOrEmail === 'string') {
+            const trimmed = userOrEmail.trim();
+            return trimmed.includes('@') ? trimmed.toLowerCase() : trimmed;
+        }
+        if (typeof userOrEmail === 'object') {
+            return userOrEmail.uid || userOrEmail.id || (userOrEmail.email ? userOrEmail.email.trim().toLowerCase() : null);
+        }
+        return null;
+    }
+
+    function normalizeFirestoreValue(value) {
+        if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+        if (Array.isArray(value)) return value.map(normalizeFirestoreValue);
+        if (value && typeof value === 'object') {
+            return Object.fromEntries(Object.entries(value).map(([key, val]) => [key, normalizeFirestoreValue(val)]));
+        }
+        return value;
+    }
+
+    function normalizeUserDoc(id, data) {
+        const normalized = normalizeFirestoreValue(data || {});
+        return {
+            id,
+            uid: normalized.uid || id,
+            status: normalized.status || 'active',
+            ...normalized
+        };
+    }
+
+    async function getFirestoreDb() {
+        if (!window.firebase?.firestore) return null;
+        await initFirebaseAuth();
+        return window.firebase.firestore();
+    }
+
+    async function fetchFirestoreUsers() {
+        const firestore = await getFirestoreDb();
+        if (!firestore) return null;
+
+        const snap = await firestore.collection('users').get();
+        return snap.docs.map(doc => normalizeUserDoc(doc.id, doc.data()));
+    }
+
+    async function updateFirestoreUser(userOrKey, patch) {
+        const firestore = await getFirestoreDb();
+        const key = getUserDocKey(userOrKey);
+        if (!firestore || !key) return false;
+
+        await firestore.collection('users').doc(key).set({
+            ...patch,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+        return true;
+    }
+
+    async function isAdminUser(userOrEmail) {
+        const normalizedEmail = typeof userOrEmail === 'string' ? userOrEmail.trim().toLowerCase() :
+            (userOrEmail?.email ? userOrEmail.email.trim().toLowerCase() : '');
+        const uid = typeof userOrEmail === 'object' ? userOrEmail.uid : null;
+        if (!normalizedEmail && !uid) return false;
+
+        const firebaseRoleDoc = await getFirebaseUserRoleDoc(userOrEmail);
+        if (hasAdminFlag(firebaseRoleDoc)) return true;
+
+        try {
+            if (uid) {
+                const { data } = await db.from('admins').select('*').eq('id', uid).maybeSingle();
+                if (data && data.active !== false) return true;
+            }
+        } catch (e) { console.warn('Admin dokumani okunamadi:', e); }
+
+        try {
+            if (normalizedEmail) {
+                const { data } = await db.from('admins').select('*').eq('email', normalizedEmail).limit(1).maybeSingle();
+                if (data && data.active !== false) return true;
+            }
+        } catch (e) { console.warn('Admin email sorgusu basarisiz:', e); }
+
+        try {
+            if (uid) {
+                const { data } = await db.from('users').select('*').eq('id', uid).maybeSingle();
+                if (hasAdminFlag(data)) return true;
+            }
+        } catch (e) { console.warn('Kullanici rol bilgisi uid ile okunamadi:', e); }
+
+        try {
+            if (normalizedEmail) {
+                const { data } = await db.from('users').select('*').eq('email', normalizedEmail).maybeSingle();
+                return hasAdminFlag(data);
+            }
+        } catch (e) { console.warn('Kullanici rol bilgisi email ile okunamadi:', e); }
+        return false;
+    }
+
+    async function fetchAllUsers() {
+        try {
+            const firestoreUsers = await fetchFirestoreUsers();
+            if (firestoreUsers) return firestoreUsers;
+        } catch (e) {
+            console.warn('Firestore kullanicilari okunamadi:', e);
+        }
+
+        try {
+            const { data, error } = await db.from('users').select('*');
+            if (error) throw error;
+            return (data || []).map(d => ({ id: d.id || d.uid || d.email, ...d }));
+        } catch (e) {
+            console.warn('fetchAllUsers:', e);
+            return [];
+        }
+    }
+
+    async function fetchActiveSessions() {
+        try {
+            const firestoreUsers = await fetchFirestoreUsers();
+            if (firestoreUsers) return firestoreUsers.filter(user => user.online === true);
+        } catch (e) {
+            console.warn('Firestore aktif kullanicilari okunamadi:', e);
+        }
+
+        try {
+            const { data, error } = await db.from('users').select('*').eq('online', true);
+            if (error) throw error;
+            return (data || []).map(d => ({ id: d.id || d.uid || d.email, ...d }));
+        } catch (e) {
+            console.warn('fetchActiveSessions:', e);
+            return [];
+        }
+    }
+
+    async function setUserStatus(userOrKey, status) {
+        try {
+            const key = getUserDocKey(userOrKey);
+            if (!key) return false;
+            if (await updateFirestoreUser(key, { status })) return true;
+            await db.from('users').update({ status }).eq('id', key);
+            return true;
+        } catch (e) {
+            console.warn('setUserStatus:', e);
+            return false;
+        }
+    }
+
+    async function adminSetPoints(userOrKey, points) {
+        try {
+            const key = getUserDocKey(userOrKey);
+            if (!key) return false;
+            const nextPoints = parseInt(points, 10);
+            if (await updateFirestoreUser(key, { points: nextPoints })) return true;
+            await db.from('users').update({ points: nextPoints }).eq('id', key);
+            return true;
+        } catch (e) {
+            console.warn('adminSetPoints:', e);
+            return false;
+        }
+    }
+
+    async function adminSendMessage(userKey, email) {
+        const message = prompt(`${email} kullanıcısına mesajınızı yazın:`);
+        if (!message) return;
+        try {
+            const now = new Date().toISOString();
+            const firestore = await getFirestoreDb();
+            if (firestore) {
+                await firestore.collection('messages').add({
+                    user_key: userKey,
+                    email,
+                    message,
+                    from: 'admin',
+                    created_at: now,
+                    createdAt: now
+                });
+                showNotification('Mesaj gonderildi.');
+                return;
+            }
+            await db.from('messages').insert({
+                user_key: userKey,
+                email,
+                message,
+                from: 'admin',
+                created_at: now,
+                createdAt: now
+            });
+            showNotification('Mesaj gönderildi.');
+        } catch (e) {
+            console.warn('adminSendMessage:', e);
+            showNotification('Mesaj gönderilemedi.', true);
+        }
+    }
+
+    function msToTime(duration) {
+        if (!duration || isNaN(duration)) return '-';
+        const minutes = Math.floor((duration / (1000 * 60)) % 60);
+        const hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
+        return `${hours} saat ${minutes} dk`;
+    }
+
+    async function renderAdminDashboardStats(users) {
+        document.getElementById('admin-total-users').textContent = users.length;
+        document.getElementById('admin-total-sessions').textContent = users.reduce((sum, u) => sum + (u.sessions || u.sessionCount || u.sessionsCount || 0), 0);
+        const active = (await fetchActiveSessions()).filter(u => !hasAdminFlag(u)).length;
+        document.getElementById('admin-current-active').textContent = active;
+    }
+
+    function renderAdminUsers(users) {
+        const list = document.getElementById('admin-users-list');
+        if (!list) return;
+        if (!users.length) {
+            list.innerHTML = '<p style="color:var(--muted);padding:24px;text-align:center;">Kullanıcı bulunamadı.</p>';
+            return;
+        }
+        list.innerHTML = '';
+        users.forEach(user => {
+            const row = document.createElement('div');
+            row.className = 'user-row';
+            const statusClass = user.status === 'banned' ? 'status-banned' : user.status === 'passive' ? 'status-passive' : 'status-active';
+            const statusLabel = user.status === 'banned' ? 'Engelli' : user.status === 'passive' ? 'Pasif' : 'Aktif';
+            const initial = (user.name || user.email || 'U').charAt(0).toUpperCase();
+            const sessions = user.sessions || user.sessionCount || user.sessionsCount || 0;
+            const lastSeen = user.lastSeen || user.lastLogin || user.updatedAt || null;
+            row.innerHTML = `
+                <div class="user-row-left">
+                    <div class="avatar">${initial}</div>
+                    <div class="user-info">
+                        <strong>${user.name || '—'}</strong>
+                        <small>${user.email || ''}</small>
+                        <div class="user-meta-pills">
+                            <span class="meta-pill points">${user.points || 0} puan</span>
+                            <span class="meta-pill sessions">${sessions} oturum</span>
+                            <span class="meta-pill lastseen">Son: ${lastSeen ? new Date(lastSeen).toLocaleString('tr-TR') : '-'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-row-right">
+                    <span class="status-chip ${statusClass}">${statusLabel}</span>
+                    <button class="btn secondary" onclick="adminEditUser('${user.id}','${user.email || ''}')"><i class="fas fa-pen"></i></button>
+                    <button class="btn accent" onclick="adminSendMessage('${user.id}','${user.email || ''}')"><i class="fas fa-envelope"></i></button>
+                    ${user.status !== 'passive' ? `<button class="btn warning" onclick="adminAction('${user.id}','passive','${user.email || ''}')"><i class="fas fa-pause"></i></button>` : ''}
+                    ${user.status !== 'banned' ? `<button class="btn danger" onclick="adminAction('${user.id}','banned','${user.email || ''}')"><i class="fas fa-ban"></i></button>` : ''}
+                    ${user.status !== 'active' ? `<button class="btn success" onclick="adminAction('${user.id}','active','${user.email || ''}')"><i class="fas fa-check"></i></button>` : ''}
+                </div>`;
+            list.appendChild(row);
+        });
+    }
+
+    async function adminAction(userId, status, email) {
+        if (!confirm(`"${email}" kullanıcısının durumu "${status}" olarak güncellensin mi?`)) return;
+        const ok = await setUserStatus(userId, status);
+        if (!ok) { showNotification('Durum güncellenemedi.', true); return; }
+        await loadAdminPanel();
+        showNotification('Kullanıcı durumu güncellendi.');
+    }
+
+    async function adminEditUser(userId, email) {
+        const name = prompt(`${email} için yeni isim girin:`, '');
+        if (name === null) return;
+        try {
+            if (await updateFirestoreUser(userId, { name })) {
+                await loadAdminPanel();
+                showNotification('Kullanici bilgisi guncellendi.');
+                return;
+            }
+            await db.from('users').update({ name }).eq('id', userId);
+            await loadAdminPanel();
+            showNotification('Kullanıcı bilgisi güncellendi.');
+        } catch (e) {
+            console.warn('adminEditUser:', e);
+            showNotification('Güncelleme başarısız oldu.', true);
+        }
+    }
+
+    async function adminEditPoints(userId, email, current) {
+        const value = prompt(`${email} için yeni puan girin:`, String(current || 0));
+        if (value === null) return;
+        if (isNaN(parseInt(value, 10))) { showNotification('Geçersiz puan değeri.', true); return; }
+        const ok = await adminSetPoints(userId, parseInt(value, 10));
+        if (!ok) { showNotification('Puan güncellenemedi.', true); return; }
+        await loadAdminPanel();
+        showNotification('Puan başarıyla güncellendi.');
+    }
+
+    async function loadAdminPanel() {
+        const loading = document.getElementById('admin-users-loading');
+        const list = document.getElementById('admin-users-list');
+        if (!loading || !list) return;
+        loading.style.display = 'block';
+        list.innerHTML = '';
+        try {
+            const users = await fetchAllUsers();
+            const normalUsers = users.filter(u => !hasAdminFlag(u));
+            renderAdminDashboardStats(normalUsers);
+            renderAdminUsers(normalUsers);
+            await renderAdminActive();
+        } catch (e) {
+            console.warn('loadAdminPanel:', e);
+            list.innerHTML = '<p style="color:var(--muted);padding:24px;text-align:center;">Veri yüklenirken bir hata oluştu.</p>';
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    function filterAdminUsers() {
+        const q = document.getElementById('admin-search-input').value.trim().toLowerCase();
+        const rows = Array.from(document.querySelectorAll('#admin-users-list .user-row'));
+        rows.forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+        });
+    }
+
+    async function renderAdminActive() {
+        const body = document.getElementById('session-log-body');
+        if (!body) return;
+        const sessions = await fetchActiveSessions();
+        const users = sessions.filter(u => !hasAdminFlag(u));
+        if (!users.length) {
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Şu an aktif kullanıcı yok.</td></tr>';
+            return;
+        }
+        body.innerHTML = users.map(user => {
+            const name = user.name || '—';
+            const email = user.email || '-';
+            const start = user.lastLogin || user.loginAt || user.createdAt || null;
+            const end = user.lastLogout || null;
+            const duration = user.duration || (start && end ? msToTime(new Date(end) - new Date(start)) : (start ? 'Çevrimiçi' : '-'));
+            return `<tr>
+                <td><strong>${name}</strong><div style="color:var(--muted);font-size:0.82rem;">${email}</div></td>
+                <td>${start ? new Date(start).toLocaleString('tr-TR') : '-'}</td>
+                <td>${end ? new Date(end).toLocaleString('tr-TR') : '-'}</td>
+                <td>${duration}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function logout() {
+        Promise.allSettled([
+            supabaseClient.auth.signOut(),
+            firebaseAuth ? firebaseAuth.signOut() : Promise.resolve()
+        ])
+            .then(() => window.location.href = 'index.html')
+            .catch(() => showNotification('Çıkış yapılırken hata oluştu.', true));
+    }
+
+    (async function bootAdminPanel() {
+        const firebaseUser = await getFirebaseAdminUser();
+        if (firebaseUser) {
+            document.getElementById('auth-loading').style.display = 'none';
+            document.querySelector('.app-shell').style.display = 'flex';
+            loadAdminPanel();
+            return;
+        }
+
+        const { data } = await supabaseClient.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
+        if (!(await isAdminUser(user))) {
+            window.location.href = 'index.html';
+            return;
+        }
+        document.getElementById('auth-loading').style.display = 'none';
+        document.querySelector('.app-shell').style.display = 'flex';
+        loadAdminPanel();
+    })().catch(error => {
+        console.warn('Admin panel baslatilamadi:', error);
+        window.location.href = 'index.html';
+    });
+
+    document.getElementById('admin-search-input').addEventListener('input', filterAdminUsers);
+
+    window.adminAction = adminAction;
+    window.adminEditUser = adminEditUser;
+    window.adminSendMessage = adminSendMessage;
+    window.loadAdminPanel = loadAdminPanel;
+    window.logout = logout;
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/supabase-config",
+      "dest": "/api/supabase-config"
+    },
+    {
+      "src": "/firebase-config",
+      "dest": "/api/firebase-config"
+    }
+  ]
+}

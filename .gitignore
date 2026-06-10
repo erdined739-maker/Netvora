@@ -1,4 +1,5 @@
 node_modules/
+.vscode/
 .env*
 !.env.example
 functions/.env*
@@ -12,4 +13,5 @@ skills-lock.json
 email-test.html
 *.local
 *.log
+supabase/.temp/
 github-upload/
