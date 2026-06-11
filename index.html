@@ -4780,6 +4780,7 @@
                 };
                 console.log('Auth init using Firebase currentUser', appUser);
                 Auth.setCurrentUser(appUser, false);
+                window._authListenerInitialized = true;
                 if (window.isAdminUser && await window.isAdminUser(firebaseCurrent)) {
                     window.location.href = 'admin.html';
                     return;
@@ -4803,13 +4804,17 @@
             showPage('login');
         })();
 
-        window.NVFirebaseReady.then(firebase => {
-            let initialAuthStateHandled = false;
-            firebase.onAuthChange(async user => {
-                console.log('Firebase onAuthStateChanged callback', { user, initialAuthStateHandled });
+        // Global flag to ensure auth listener only handles initial state once per session
+        window._authListenerInitialized = false;
+        let _lastAuthRedirectUrl = null;
 
-                if (!initialAuthStateHandled) {
-                    initialAuthStateHandled = true;
+        window.NVFirebaseReady.then(firebase => {
+            firebase.onAuthChange(async user => {
+                console.log('Firebase onAuthStateChanged callback', { user, initializing: !window._authListenerInitialized });
+
+                if (!window._authListenerInitialized) {
+                    window._authListenerInitialized = true;
+                    console.log('First auth state change - initializing');
                     if (!user) {
                         console.log('Waiting briefly for initial auth restoration');
                         await new Promise(resolve => setTimeout(resolve, 250));
@@ -4823,8 +4828,10 @@
 
                 if (!user) {
                     console.log('No Firebase user available, redirecting to login');
-                    Auth.clearCurrentUser();
-                    showPage('login');
+                    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+                        Auth.clearCurrentUser();
+                        showPage('login');
+                    }
                     return;
                 }
 
@@ -4838,12 +4845,17 @@
                     Auth.setCurrentUser(appUser, false);
                 }
 
-                console.log('Authenticated user detected, showing app', { appUser });
+                console.log('Authenticated user detected', { appUser });
                 document.getElementById('header-subtitle').textContent =
                     `Hoş geldin, ${appUser.name}! 20 Haziran 2026, 10:15'e kadar olan yolculuğun`;
 
                 if (window.isAdminUser && await window.isAdminUser(user)) {
-                    window.location.href = 'admin.html';
+                    const targetUrl = window.location.origin + '/admin.html';
+                    if (_lastAuthRedirectUrl !== targetUrl) {
+                        _lastAuthRedirectUrl = targetUrl;
+                        console.log('Admin user detected, redirecting to admin panel');
+                        window.location.href = 'admin.html';
+                    }
                     return;
                 }
 

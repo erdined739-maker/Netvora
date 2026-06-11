@@ -20,6 +20,16 @@ self.addEventListener('install', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const isApiCall = url.pathname.includes('/api/') || url.pathname.includes('-config');
+  const isAuthDomain = url.hostname !== location.hostname && (url.hostname.includes('firebase') || url.hostname.includes('supabase'));
+
+  // Never cache API calls or auth requests
+  if (isApiCall || isAuthDomain) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
       fetch(event.request)
