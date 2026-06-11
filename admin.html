@@ -782,19 +782,36 @@
         }
     }
 
-    function waitForFirebaseUser(auth) {
+    function waitForFirebaseUser(auth, timeout = 5000) {
         return new Promise(resolve => {
-            const unsubscribe = auth.onAuthStateChanged(user => {
+            let resolved = false;
+            const finish = user => {
+                if (resolved) return;
+                resolved = true;
                 unsubscribe();
+                clearTimeout(timer);
                 resolve(user || null);
+            };
+
+            const unsubscribe = auth.onAuthStateChanged(user => {
+                if (user) {
+                    finish(user);
+                } else if (auth.currentUser) {
+                    finish(auth.currentUser);
+                }
+                // Do not resolve on first null immediately; wait for persisted state restoration.
             });
+
+            const timer = setTimeout(() => {
+                finish(auth.currentUser || null);
+            }, timeout);
         });
     }
 
     async function getFirebaseAdminUser() {
         const auth = await initFirebaseAuth();
         if (!auth) return null;
-        const user = auth.currentUser || await waitForFirebaseUser(auth);
+        const user = auth.currentUser || await waitForFirebaseUser(auth, 5000);
         if (!user) return null;
 
         try {
