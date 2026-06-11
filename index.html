@@ -4292,6 +4292,14 @@
             list.appendChild(sectionMgmt);
         }
 
+        async function adminSendMessage(userKey, email) {
+            if (typeof window.sendAdminMessage === 'function') {
+                return await window.sendAdminMessage(userKey, email);
+            }
+            showNotification('Mesaj gönderme özelliği şu anda kullanılabilir değil.', false);
+            return false;
+        }
+
         async function adminAction(userKey, status, email) {
             if (!confirm(`"${email}" kullanıcısının durumu "${status}" yapılsın mı?`)) return;
             const ok = await (window.setUserStatus ? window.setUserStatus(userKey, status) : Promise.resolve(false));
