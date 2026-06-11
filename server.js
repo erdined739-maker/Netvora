@@ -13,14 +13,10 @@ const defaultFirebaseConfig = {
   appId: "1:107956835981:web:7a008de3ede40048b334c4"
 };
 
-// Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Serve static files from root directory
 app.use(express.static(path.join(__dirname)));
 
-// Supabase config endpoint (güvenli şekilde frontend'e verir)
 app.get('/supabase-config', (req, res) => {
   res.json({
     url: process.env.SUPABASE_URL || "",
@@ -28,9 +24,6 @@ app.get('/supabase-config', (req, res) => {
   });
 });
 
-// Firebase config endpoint (yalnızca public parametreleri döner)
-// Beklenen env isimleri: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID,
-// FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID
 app.get('/firebase-config', (req, res) => {
   res.json({
     apiKey: process.env.FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
@@ -42,16 +35,73 @@ app.get('/firebase-config', (req, res) => {
   });
 });
 
+const adminUserHandler = async (req, res) => {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://upjxnnxudukygkdgimdo.supabase.co';
 
-// Fallback to index.html for Single Page App routing
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+  if (!serviceRoleKey) {
+    return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY environment variable is required.' });
+  }
+
+  const { action, userId, patch, payload } = req.body || {};
+  if (!action) {
+    return res.status(400).json({ error: 'Action is required.' });
+  }
+
+  const headers = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation'
+  };
+
+  try {
+    if (action === 'updateUser') {
+      if (!userId || !patch || typeof patch !== 'object') {
+        return res.status(400).json({ error: 'userId and patch are required.' });
+      }
+
+      const url = `${supabaseUrl}/rest/v1/users?id=eq.${encodeURIComponent(userId)}`;
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(patch)
+      });
+      const body = await response.text();
+      if (!response.ok) {
+        return res.status(response.status).json({ error: body || 'Supabase update failed.' });
+      }
+      return res.status(200).send(body || '{}');
+    }
+
+    if (action === 'sendMessage') {
+      if (!payload || typeof payload !== 'object') {
+        return res.status(400).json({ error: 'payload is required.' });
+      }
+
+      const url = `${supabaseUrl}/rest/v1/messages`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const body = await response.text();
+      if (!response.ok) {
+        return res.status(response.status).json({ error: body || 'Supabase insert failed.' });
+      }
+      return res.status(200).send(body || '{}');
+    }
+
+    return res.status(400).json({ error: `Unknown action: ${action}` });
+  } catch (e) {
+    console.warn('admin-user function error:', e);
+    return res.status(500).json({ error: e.message || 'Internal error' });
+  }
+};
+
+app.post('/.netlify/functions/admin-user', adminUserHandler);
+app.post('/admin-user', adminUserHandler);
 
 app.listen(PORT, () => {
-  console.log(`==================================================`);
-  console.log(`  NETVORA Local Server running on port ${PORT}`);
-  console.log(`  Access the website at: http://localhost:${PORT}`);
-  console.log(`  AI calls go directly to Supabase Edge Function`);
-  console.log(`==================================================`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

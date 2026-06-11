@@ -2664,6 +2664,53 @@
                 flex-direction: column;
             }
         }
+
+        /* Mesaj Bildirim İkonu ve Rozeti */
+        .msg-badge-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        .msg-badge-container:hover {
+            transform: scale(1.05);
+            background: #6366f1;
+        }
+        .msg-badge-container i {
+            font-size: 1.25rem;
+            color: #fff;
+        }
+        .msg-badge-container .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444; /* Instagram kırmızısı */
+            color: white;
+            border-radius: 50%;
+            min-width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #1e293b;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .msg-badge-container .badge.hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -2805,6 +2852,10 @@
     </div>
         <!-- ===== MAIN APP ===== -->
     <div id="main-app" style="display:none;">
+        <div class="msg-badge-container" id="msg-nav-badge" onclick="scrollToMessages()" title="Mesajlarım">
+            <i class="fas fa-envelope"></i>
+            <span class="badge hidden" id="unread-msg-count">0</span>
+        </div>
         <div class="container">
             <header>
                 <!-- Logo removed -->
@@ -3201,6 +3252,17 @@
                             <p><strong>Tespit Edilen Sorular:</strong> <span id="result-detected-questions">-</span></p>
                             <p><strong>Güven Skoru:</strong> <span id="result-confidence">0%</span></p>
                             <div id="result-error" style="display:none; color:var(--danger); margin-top:8px; padding:8px; background:#fff0f3; border-radius:6px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Mesaj Kutusu -->
+                    <div class="card" style="grid-column:1/-1;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <h2 style="margin:0;"><i class="fas fa-envelope"></i> Mesajlarım</h2>
+                            <button class="btn small" onclick="loadUserMessages()" style="padding:6px 12px;font-size:0.85rem;"><i class="fas fa-rotate"></i> Yenile</button>
+                        </div>
+                        <div id="user-messages-list" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;">
+                            <p style="color:#999;text-align:center;padding:20px;">Mesaj yükleniyor...</p>
                         </div>
                     </div>
                 </div>
@@ -3855,13 +3917,15 @@
                 if (!userKey) return;
                 const now = new Date().toISOString();
                 const email = typeof user === 'object' ? (user.email || '').toLowerCase() : userKey;
+                const fallbackName = email ? email.split('@')[0] : '';
+                const displayName = (name || (user && (user.displayName || user.user_metadata?.name || user.user_metadata?.display_name)) || fallbackName || '').trim();
                 const { data: existing } = await db.from('users').select('id').eq('id', userKey).maybeSingle();
                 if (!existing) {
                     await db.from('users').insert({
                         id: userKey,
                         uid: userKey,
                         email,
-                        name,
+                        name: displayName,
                         points: 0,
                         total_questions: 0,
                         totalQuestions: 0,
@@ -3873,7 +3937,9 @@
                         online: true
                     });
                 } else {
-                    await db.from('users').update({ email, name, last_seen: now, lastSeen: now, online: true }).eq('id', userKey);
+                    const updateFields = { email, last_seen: now, lastSeen: now, online: true };
+                    if (displayName) updateFields.name = displayName;
+                    await db.from('users').update(updateFields).eq('id', userKey);
                 }
             } catch(e) { console.warn('ensureUserProfile:', e); }
         };
@@ -4016,6 +4082,54 @@
             } catch(e) { return []; }
         };
 
+        // ---- MESSAGING SYSTEM ----
+        window.sendAdminMessage = async function(userKey, userEmail, messageText) {
+            try {
+                if (!hasSupabaseDataClient()) return false;
+                const normalizedUserKey = getUserDocKey({ email: userEmail, uid: userKey });
+                if (!normalizedUserKey) return false;
+                const now = new Date().toISOString();
+                const { error } = await db.from('messages').insert({
+                    recipient_id: normalizedUserKey,
+                    recipient_email: userEmail,
+                    sender: 'admin',
+                    message: messageText,
+                    sent_at: now,
+                    sentAt: now,
+                    read: false
+                });
+                return !error;
+            } catch(e) {
+                console.warn('sendAdminMessage:', e);
+                return false;
+            }
+        };
+
+        window.fetchUserMessages = async function(user) {
+            try {
+                if (!hasSupabaseDataClient()) return [];
+                const userKey = getUserDocKey(user);
+                if (!userKey) return [];
+                const { data, error } = await db.from('messages').select('*').eq('recipient_id', userKey).order('sent_at', { ascending: false }).limit(50);
+                if (error) throw error;
+                return data || [];
+            } catch(e) {
+                console.warn('fetchUserMessages:', e);
+                return [];
+            }
+        };
+
+        window.markMessageAsRead = async function(messageId) {
+            try {
+                if (!hasSupabaseDataClient()) return false;
+                const { error } = await db.from('messages').update({ read: true }).eq('id', messageId);
+                return !error;
+            } catch(e) {
+                console.warn('markMessageAsRead:', e);
+                return false;
+            }
+        };
+
         window.NVFirestoreReady = true;
         console.log(window.NVSupabaseDataEnabled ? 'Supabase veri modulu hazir' : 'Supabase sadece Gemini proxy icin kullaniliyor');
     </script>
@@ -4091,6 +4205,7 @@
             },
             async logout() {
                 const firebase = await this.firebase();
+                await window.stopFirestorePresence?.();
                 await firebase.signOut();
                 this.clearCurrentUser();
             }
@@ -4293,8 +4408,16 @@
         }
 
         async function adminSendMessage(userKey, email) {
+            const messageText = prompt('Mesaj gönder:');
+            if (!messageText) return false;
             if (typeof window.sendAdminMessage === 'function') {
-                return await window.sendAdminMessage(userKey, email);
+                const ok = await window.sendAdminMessage(userKey, email, messageText);
+                if (ok) {
+                    showNotification('Mesaj başarıyla gönderildi!', true);
+                } else {
+                    showNotification('Mesaj gönderilemedi!', false);
+                }
+                return ok;
             }
             showNotification('Mesaj gönderme özelliği şu anda kullanılabilir değil.', false);
             return false;
@@ -4755,6 +4878,7 @@
                 return;
             }
 
+            if (window.ensureUserProfile) window.ensureUserProfile(res.user, name);
             showMsg('register-msg', 'Kayıt başarılı! Giriş yapabilirsiniz.', false);
             showPage('login');
         });
@@ -4765,6 +4889,11 @@
             if (!confirm('Çıkış yapmak istediğinizden emin misiniz?')) return;
             const user = Auth.getCurrentUser();
             if (user && window.setUserOffline) window.setUserOffline(user);
+            if (window.userMessagesListener) {
+                window.userMessagesListener();
+                window.userMessagesListener = null;
+            }
+            if (typeof updateMessageBadge === 'function') updateMessageBadge(0);
             window._authInitialized = false;
             await Auth.logout();
             showPage('login');
@@ -4816,6 +4945,111 @@
         window._authListenerInitialized = false;
         let _lastAuthRedirectUrl = null;
 
+        window.setFirestorePresence = async function(user, online) {
+            if (!user || !window.firebase?.firestore) return;
+            const uid = user.uid || user.id;
+            if (!uid) return;
+            try {
+                const firestore = window.firebase.firestore();
+                const doc = firestore.collection('users').doc(uid);
+                await doc.set({
+                    name: user.name || user.displayName || (user.email ? user.email.split('@')[0] : null),
+                    email: user.email || null,
+                    uid,
+                    online: online === true,
+                    lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('Firestore presence update failed:', e);
+            }
+        };
+
+        window.startFirestorePresence = async function(user) {
+            if (!user || !window.firebase?.firestore) return;
+            window._firestorePresenceUser = user;
+            window._firestorePresenceInterval = window._firestorePresenceInterval || null;
+            await window.setFirestorePresence(user, true);
+            if (window._firestorePresenceInterval) clearInterval(window._firestorePresenceInterval);
+            window._firestorePresenceInterval = setInterval(() => {
+                window.setFirestorePresence(user, true).catch(() => {});
+            }, 30000);
+        };
+
+        window.stopFirestorePresence = async function() {
+            const user = window._firestorePresenceUser;
+            if (!user || !window.firebase?.firestore) return;
+            if (window._firestorePresenceInterval) {
+                clearInterval(window._firestorePresenceInterval);
+                window._firestorePresenceInterval = null;
+            }
+            window._firestorePresenceUser = null;
+            try {
+                await window.setFirestorePresence(user, false);
+            } catch (e) {
+                console.warn('Firestore stop presence failed:', e);
+            }
+        };
+
+        async function getFirestoreDb() {
+            await window.NVConfigLoaded;
+            if (!window.firebase?.firestore) return null;
+            if (!window.firebase.apps.length && window.NVFirebaseConfig) {
+                try {
+                    window.firebase.initializeApp(window.NVFirebaseConfig);
+                } catch (e) {
+                    console.warn('Firebase app initialize failed:', e);
+                }
+            }
+            return window.firebase.firestore();
+        }
+
+        window.markMessagesAsSeen = async function(receiverId = null, conversationId = null) {
+            try {
+                const firestore = await getFirestoreDb();
+                if (!firestore) return false;
+                const uid = receiverId || window.FirebaseAuth?.currentUser?.uid;
+                if (!uid) return false;
+                let query = firestore.collection('messages')
+                    .where('receiverId', '==', uid)
+                    .where('seen', '==', false);
+                if (conversationId) query = query.where('conversationId', '==', conversationId);
+                const querySnap = await query.limit(100).get();
+                if (querySnap.empty) return false;
+                const batch = firestore.batch();
+                querySnap.docs.forEach(doc => {
+                    batch.update(doc.ref, {
+                        seen: true,
+                        seenAt: window.firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                await batch.commit();
+                return true;
+            } catch (e) {
+                console.warn('markMessagesAsSeen failed:', e);
+                return false;
+            }
+        };
+
+        window.markCurrentUserMessagesAsSeen = async function(conversationId = null) {
+            return window.markMessagesAsSeen(null, conversationId);
+        };
+
+        const _flushFirestorePresence = () => {
+            if (!window._firestorePresenceUser || !window.firebase?.firestore) return;
+            try {
+                const firestore = window.firebase.firestore();
+                firestore.collection('users').doc(window._firestorePresenceUser.uid).set({
+                    online: false,
+                    lastSeen: window.firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('flush presence update failed:', e);
+            }
+        };
+
+        window.addEventListener('beforeunload', _flushFirestorePresence);
+        window.addEventListener('pagehide', _flushFirestorePresence);
+
         window.NVFirebaseReady.then(firebase => {
             firebase.onAuthChange(async user => {
                 console.log('Firebase onAuthStateChanged callback', { user, initializing: !window._authListenerInitialized });
@@ -4835,6 +5069,7 @@
                 }
 
                 if (!user) {
+                    await window.stopFirestorePresence?.();
                     console.log('No Firebase user available, redirecting to login');
                     if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
                         Auth.clearCurrentUser();
@@ -4842,6 +5077,8 @@
                     }
                     return;
                 }
+
+                await window.startFirestorePresence(user);
 
                 const appUser = {
                     name: user.name || (user.displayName || (user.email ? user.email.split('@')[0] : null)),
@@ -4870,6 +5107,7 @@
                 showPage('app');
                 loadFromLocalStorage();
                 if (window.ensureUserProfile) window.ensureUserProfile(user, appUser.name);
+                if (typeof loadUserMessages === 'function') loadUserMessages();
             });
         });
 
@@ -6427,6 +6665,143 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
             setTimeout(function () { closeForgotModal(); }, 3000);
         }
 
+        let userMessagesListener = null;
+
+        async function loadUserMessages() {
+            const list = document.getElementById('user-messages-list');
+            if (!list) return;
+            const currentUser = Auth.getCurrentUser();
+            const uid = currentUser?.uid || window.FirebaseAuth?.currentUser?.uid;
+            if (!uid) {
+                list.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Oturum açık değil.</p>';
+                return;
+            }
+
+            if (window.userMessagesListener) {
+                window.userMessagesListener();
+                window.userMessagesListener = null;
+            }
+
+            list.innerHTML = '<p style="color:#999;text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Mesajlar yükleniyor...</p>';
+
+            try {
+                const firestore = await getFirestoreDb();
+                if (firestore) {
+                    window.userMessagesListener = firestore.collection('messages')
+                        .where('receiverId', '==', uid)
+                        .onSnapshot(snap => {
+                            let messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            messages.sort((a, b) => {
+                                const dateA = new Date(a.createdAt || a.created_at || 0);
+                                const dateB = new Date(b.createdAt || b.created_at || 0);
+                                return dateB - dateA;
+                            });
+
+                            const unreadCount = messages.filter(msg => !msg.seen).length;
+                            updateMessageBadge(unreadCount);
+
+                            if (!messages.length) {
+                                list.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Mesajınız bulunmuyor.</p>';
+                                return;
+                            }
+
+                            list.innerHTML = messages.map(msg => {
+                                const date = msg.createdAt || msg.created_at ? new Date(msg.createdAt || msg.created_at).toLocaleString('tr-TR') : '';
+                                const seenStatus = msg.seen ? 'Okundu' : 'Okunmadı';
+                                const statusColor = msg.seen ? '#22c55e' : '#f59e0b';
+                                return `
+                                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <strong style="color:var(--primary); font-size:0.9rem;">Yönetici Mesajı</strong>
+                                            <span style="font-size:0.75rem; color:${statusColor}; font-weight:700;">${seenStatus}</span>
+                                        </div>
+                                        <p style="font-size:0.88rem; margin:0; line-height:1.4; color:var(--text); white-space:pre-wrap;">${String(msg.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                                            <span style="font-size:0.72rem; color:#888;">${date}</span>
+                                            ${!msg.seen ? `<button class="btn small" onclick="markUserMessageRead('${msg.id}')" style="padding:2px 8px; font-size:0.72rem; background:rgba(6,182,212,0.15); color:var(--accent); border:none; border-radius:6px; cursor:pointer;">Okundu İşaretle</button>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                        }, err => {
+                            console.warn('onSnapshot error:', err);
+                            list.innerHTML = '<p style="color:#ef4444;text-align:center;padding:20px;">Mesajlar yüklenirken bir hata oluştu.</p>';
+                        });
+                } else {
+                    const rawData = localStorage.getItem('nv_user_messages') || '[]';
+                    let messages = JSON.parse(rawData);
+                    const unreadCount = messages.filter(msg => !msg.seen).length;
+                    updateMessageBadge(unreadCount);
+                    
+                    if (!messages.length) {
+                        list.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Mesajınız bulunmuyor.</p>';
+                        return;
+                    }
+
+                    list.innerHTML = messages.map(msg => {
+                        const date = msg.createdAt || msg.created_at ? new Date(msg.createdAt || msg.created_at).toLocaleString('tr-TR') : '';
+                        const seenStatus = msg.seen ? 'Okundu' : 'Okunmadı';
+                        const statusColor = msg.seen ? '#22c55e' : '#f59e0b';
+                        return `
+                            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong style="color:var(--primary); font-size:0.9rem;">Yönetici Mesajı</strong>
+                                    <span style="font-size:0.75rem; color:${statusColor}; font-weight:700;">${seenStatus}</span>
+                                </div>
+                                <p style="font-size:0.88rem; margin:0; line-height:1.4; color:var(--text); white-space:pre-wrap;">${String(msg.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                                    <span style="font-size:0.72rem; color:#888;">${date}</span>
+                                    ${!msg.seen ? `<button class="btn small" onclick="markUserMessageRead('${msg.id}')" style="padding:2px 8px; font-size:0.72rem; background:rgba(6,182,212,0.15); color:var(--accent); border:none; border-radius:6px; cursor:pointer;">Okundu İşaretle</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.warn('loadUserMessages error:', e);
+                list.innerHTML = '<p style="color:#ef4444;text-align:center;padding:20px;">Mesajlar yüklenirken bir hata oluştu.</p>';
+            }
+        }
+
+        async function markUserMessageRead(messageId) {
+            try {
+                const firestore = await getFirestoreDb();
+                if (firestore) {
+                    await firestore.collection('messages').doc(messageId).update({
+                        seen: true,
+                        seenAt: new Date().toISOString()
+                    });
+                    showNotification('Mesaj okundu olarak işaretlendi.');
+                    loadUserMessages();
+                }
+            } catch (e) {
+                console.warn('markUserMessageRead error:', e);
+                showNotification('Mesaj güncellenemedi.', false);
+            }
+        }
+
+        function updateMessageBadge(count) {
+            const badge = document.getElementById('unread-msg-count');
+            if (!badge) return;
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function scrollToMessages() {
+            const messageCard = document.querySelector('#user-messages-list')?.closest('.card');
+            if (messageCard) {
+                messageCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                messageCard.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.5)';
+                setTimeout(() => {
+                    messageCard.style.boxShadow = '';
+                }, 2000);
+            }
+        }
+
         // Expose module functions for inline event handlers
         window.loadAdminPanel = loadAdminPanel;
         window.logout = logout;
@@ -6435,6 +6810,10 @@ Sadece su JSON formatinda cevap ver, markdown kullanma:
         window.adminEditUser = adminEditUser;
         window.adminSendMessage = adminSendMessage;
         window.adminEditPoints = adminEditPoints;
+        window.loadUserMessages = loadUserMessages;
+        window.markUserMessageRead = markUserMessageRead;
+        window.updateMessageBadge = updateMessageBadge;
+        window.scrollToMessages = scrollToMessages;
 
     </script>
 

@@ -21,7 +21,7 @@ self.addEventListener('install', (event) => {
 // Fetch event
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  const isApiCall = url.pathname.includes('/api/') || url.pathname.includes('-config');
+  const isApiCall = url.pathname.includes('/api/') || url.pathname.includes('-config') || url.pathname.includes('/.netlify/functions/') || url.pathname.includes('/admin-user');
   const isAuthDomain = url.hostname !== location.hostname && (url.hostname.includes('firebase') || url.hostname.includes('supabase'));
 
   // Never cache API calls or auth requests

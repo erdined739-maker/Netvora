@@ -463,6 +463,10 @@
 
         /* ── RESPONSIVE ── */
         @media (max-width: 768px) {
+            html, body {
+                min-width: 0;
+                overflow-x: hidden;
+            }
             .sidebar { display: none; }
             .main { margin-left: 0; }
             .mobile-nav { display: block; }
@@ -470,35 +474,95 @@
             .page-content {
                 padding: 16px 14px calc(70px + env(safe-area-inset-bottom, 0px));
                 gap: 16px;
+                min-width: 0;
+                width: 100%;
             }
 
-            .topbar { padding: 14px 16px; }
+            .topbar {
+                padding: 14px 16px;
+                flex-wrap: wrap;
+                gap: 10px;
+                min-width: 0;
+            }
+            .topbar-left { min-width: 0; }
             .topbar-left h1 { font-size: 1.1rem; }
+            .topbar-right { flex-wrap: wrap; gap: 10px; }
 
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
                 gap: 10px;
+                min-width: 0;
             }
 
             .stats-grid .stat-card:last-child {
                 grid-column: span 2;
             }
 
-            .user-row { padding: 12px 14px; }
+            .section-card,
+            .user-row,
+            .message-card,
+            .section-header,
+            .search-wrap,
+            .session-table,
+            .topbar,
+            .stats-grid {
+                min-width: 0;
+            }
+
+            .user-row {
+                padding: 12px 14px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .user-row-left {
+                min-width: 0;
+                flex: 1 1 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .user-row-right {
+                flex: 1 1 100%;
+                justify-content: flex-start;
+                align-items: center;
+                gap: 8px;
+                margin-top: 0;
+                max-width: 100%;
+                flex-wrap: wrap;
+            }
+            .user-row-right .status-chip {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            .user-row-right button {
+                flex: 1 1 calc(50% - 8px);
+                min-width: 0;
+                padding: 8px 10px;
+                font-size: 0.75rem;
+            }
+            .user-meta-pills {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .meta-pill {
+                white-space: nowrap;
+            }
+
             .search-wrap { padding: 12px 14px; }
             .section-header { padding: 14px 16px; }
-
-            .user-row-right {
-                flex-wrap: wrap;
-                justify-content: flex-end;
-                gap: 6px;
-                max-width: 160px;
-            }
+            .message-card { padding: 16px; }
+            .message-header,
+            .message-actions { flex-wrap: wrap; gap: 8px; }
+            .message-body { word-break: break-word; }
 
             .session-table th, .session-table td {
                 padding: 10px 14px;
                 font-size: 0.82rem;
             }
+            .session-table { min-width: 100%; }
+            .session-table th:last-child,
+            .session-table td:last-child { min-width: 80px; }
 
             .notification {
                 left: 12px; right: 12px; bottom: 80px;
@@ -560,13 +624,13 @@
         </div>
         <nav class="sidebar-nav">
             <a class="nav-item active" href="#">
-                <i class="fas fa-house"></i> Dashboard
+                <i class="fas fa-house"></i> Pano
             </a>
             <a class="nav-item" href="#">
                 <i class="fas fa-users"></i> Kullanıcılar
             </a>
             <a class="nav-item" href="#">
-                <i class="fas fa-clock-rotate-left"></i> Oturum Logu
+                <i class="fas fa-clock-rotate-left"></i> Oturum Kayıtları
             </a>
             <a class="nav-item" href="index.html">
                 <i class="fas fa-arrow-left"></i> Ana Sayfa
@@ -644,6 +708,23 @@
                 <div id="admin-users-list"></div>
             </div>
 
+            <!-- MESAJLAR -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h2>Mesajlar</h2>
+                        <p>Firestore mesajlarını ve okundu durumlarını burada takip edin.</p>
+                    </div>
+                    <button class="btn secondary" onclick="loadAdminMessages()">
+                        <i class="fas fa-rotate"></i> Yenile
+                    </button>
+                </div>
+                <div id="admin-messages-loading" style="display:none;padding:16px 24px;">
+                    <div class="spinner"></div>
+                </div>
+                <div id="admin-messages-list"></div>
+            </div>
+
             <!-- SESSION LOG -->
             <div class="section-card">
                 <div class="section-header">
@@ -676,9 +757,9 @@
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mobile-nav">
     <div class="mobile-nav-inner">
-        <div class="mobile-tab active"><i class="fas fa-house"></i> Home</div>
-        <div class="mobile-tab"><i class="fas fa-users"></i> Users</div>
-        <div class="mobile-tab"><i class="fas fa-clock-rotate-left"></i> Logs</div>
+        <div class="mobile-tab active"><i class="fas fa-house"></i> Pano</div>
+        <div class="mobile-tab"><i class="fas fa-users"></i> Kullanıcılar</div>
+        <div class="mobile-tab"><i class="fas fa-clock-rotate-left"></i> Kayıtlar</div>
         <div class="mobile-tab" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıkış</div>
     </div>
 </nav>
@@ -719,6 +800,28 @@
         if (!data || data.active === false) return false;
         return data.admin === true || data.isAdmin === true || data.role === 'admin' || data.role === 'owner' ||
             (Array.isArray(data.roles) && data.roles.includes('admin'));
+    }
+
+    async function callNetlifyAdminUser(action, payload) {
+        const endpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? '/admin-user'
+            : '/.netlify/functions/admin-user';
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, ...payload })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.warn('admin-user failed:', response.status, errorText);
+                return { ok: false, error: errorText || response.statusText };
+            }
+            return { ok: true, data: await response.json() };
+        } catch (e) {
+            console.warn('admin-user request failed:', e);
+            return { ok: false, error: e.message };
+        }
     }
 
     async function getFirebaseUserRoleDoc(userOrEmail) {
@@ -874,11 +977,16 @@
         const key = getUserDocKey(userOrKey);
         if (!firestore || !key) return false;
 
-        await firestore.collection('users').doc(key).set({
-            ...patch,
-            updatedAt: new Date().toISOString()
-        }, { merge: true });
-        return true;
+        try {
+            await firestore.collection('users').doc(key).set({
+                ...patch,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            return true;
+        } catch (e) {
+            console.warn('updateFirestoreUser:', e);
+            return false;
+        }
     }
 
     async function isAdminUser(userOrEmail) {
@@ -931,7 +1039,11 @@
         try {
             const { data, error } = await db.from('users').select('*');
             if (error) throw error;
-            return (data || []).map(d => ({ id: d.id || d.uid || d.email, ...d }));
+            return (data || []).map(d => ({
+                id: d.id || d.uid || d.email,
+                status: d.status || 'active',
+                ...d
+            }));
         } catch (e) {
             console.warn('fetchAllUsers:', e);
             return [];
@@ -939,9 +1051,19 @@
     }
 
     async function fetchActiveSessions() {
+        const now = Date.now();
+        const maxTimeDifference = 120000; // 2 minutes in milliseconds
+
         try {
             const firestoreUsers = await fetchFirestoreUsers();
-            if (firestoreUsers) return firestoreUsers.filter(user => user.online === true);
+            if (firestoreUsers) {
+                return firestoreUsers.filter(user => {
+                    if (user.online !== true) return false;
+                    if (!user.lastSeen) return false;
+                    const lastSeenTime = new Date(user.lastSeen).getTime();
+                    return (now - lastSeenTime) < maxTimeDifference;
+                }).map(u => ({ status: u.status || 'active', ...u }));
+            }
         } catch (e) {
             console.warn('Firestore aktif kullanicilari okunamadi:', e);
         }
@@ -949,7 +1071,18 @@
         try {
             const { data, error } = await db.from('users').select('*').eq('online', true);
             if (error) throw error;
-            return (data || []).map(d => ({ id: d.id || d.uid || d.email, ...d }));
+            return (data || []).filter(d => {
+                if (d.online !== true) return false;
+                const lastSeen = d.lastSeen || d.last_seen || d.updatedAt || d.updated_at;
+                if (!lastSeen) return false;
+                const lastSeenTime = new Date(lastSeen).getTime();
+                return (now - lastSeenTime) < maxTimeDifference;
+            }).map(d => ({
+                id: d.id || d.uid || d.email,
+                status: d.status || 'active',
+                online: d.online === true,
+                ...d
+            }));
         } catch (e) {
             console.warn('fetchActiveSessions:', e);
             return [];
@@ -960,8 +1093,13 @@
         try {
             const key = getUserDocKey(userOrKey);
             if (!key) return false;
+
+            const backend = await callNetlifyAdminUser('updateUser', { userId: key, patch: { status } });
+            if (backend.ok) return true;
+
             if (await updateFirestoreUser(key, { status })) return true;
-            await db.from('users').update({ status }).eq('id', key);
+            const { error } = await db.from('users').update({ status }).eq('id', key);
+            if (error) throw error;
             return true;
         } catch (e) {
             console.warn('setUserStatus:', e);
@@ -983,33 +1121,129 @@
         }
     }
 
+    async function fetchAdminMessages(limit = 50) {
+        try {
+            const firestore = await getFirestoreDb();
+            if (!firestore) return [];
+            const snap = await firestore.collection('messages')
+                .orderBy('createdAt', 'desc')
+                .limit(limit)
+                .get();
+            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+            console.warn('fetchAdminMessages:', e);
+            return [];
+        }
+    }
+
+    function formatTimestamp(value) {
+        if (!value) return '-';
+        try {
+            const date = value.toDate ? value.toDate() : new Date(value);
+            return date.toLocaleString('tr-TR');
+        } catch {
+            return String(value);
+        }
+    }
+
+    async function loadAdminMessages() {
+        const loading = document.getElementById('admin-messages-loading');
+        const list = document.getElementById('admin-messages-list');
+        if (!loading || !list) return;
+        loading.style.display = 'block';
+        list.innerHTML = '';
+        try {
+            const messages = await fetchAdminMessages();
+            if (!messages.length) {
+                list.innerHTML = '<p style="color:var(--muted);padding:24px;text-align:center;">Gösterilecek mesaj yok.</p>';
+                return;
+            }
+            renderAdminMessages(messages);
+        } catch (e) {
+            console.warn('loadAdminMessages:', e);
+            list.innerHTML = '<p style="color:var(--muted);padding:24px;text-align:center;">Mesajlar yüklenirken hata oluştu.</p>';
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    function renderAdminMessages(messages) {
+        const list = document.getElementById('admin-messages-list');
+        if (!list) return;
+        list.innerHTML = messages.map(message => {
+            const seenStatus = message.seen ? 'Okundu' : 'Okunmadı';
+            const statusClass = message.seen ? 'read' : 'unread';
+            const receiver = message.receiverId || message.user_key || message.email || 'Bilinmiyor';
+            const created = formatTimestamp(message.createdAt || message.created_at);
+            const seenAt = formatTimestamp(message.seenAt);
+            return `
+                <div class="message-card">
+                    <div class="message-header">
+                        <strong>${receiver}</strong>
+                        <span class="message-status ${statusClass}">${seenStatus}</span>
+                    </div>
+                    <div class="message-body">${String(message.message || '').replace(/\n/g, '<br>')}</div>
+                    <div class="message-meta">
+                        <span>Gönderen: ${message.from || 'Bilinmiyor'}</span>
+                        <span>Oluşturulma: ${created}</span>
+                        <span>Okunma: ${message.seen ? seenAt : '-'}</span>
+                    </div>
+                    <div class="message-actions">
+                        ${message.seen ? '' : `<button class="btn secondary" onclick="markAdminMessageRead('${message.id}')">Okundu olarak işaretle</button>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function markAdminMessageRead(messageId) {
+        try {
+            const firestore = await getFirestoreDb();
+            if (!firestore) return false;
+            const doc = firestore.collection('messages').doc(messageId);
+            await doc.update({
+                seen: true,
+                seenAt: window.firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await loadAdminMessages();
+            return true;
+        } catch (e) {
+            console.warn('markAdminMessageRead:', e);
+            return false;
+        }
+    }
+
     window.adminSendMessage = async function adminSendMessage(userKey, email) {
         console.log('adminSendMessage called', { userKey, email });
         const message = prompt(`${email} kullanıcısına mesajınızı yazın:`);
         if (!message) return;
+        const now = new Date().toISOString();
+        const payload = {
+            user_key: userKey,
+            receiverId: userKey,
+            email,
+            message,
+            from: 'admin',
+            seen: false,
+            seenAt: null,
+            created_at: now,
+            createdAt: now
+        };
+
+        const backend = await callNetlifyAdminUser('sendMessage', { payload });
+        if (backend.ok) {
+            showNotification('Mesaj gönderildi.');
+            return;
+        }
+
         try {
-            const now = new Date().toISOString();
             const firestore = await getFirestoreDb();
             if (firestore) {
-                await firestore.collection('messages').add({
-                    user_key: userKey,
-                    email,
-                    message,
-                    from: 'admin',
-                    created_at: now,
-                    createdAt: now
-                });
+                await firestore.collection('messages').add(payload);
                 showNotification('Mesaj gonderildi.');
                 return;
             }
-            await db.from('messages').insert({
-                user_key: userKey,
-                email,
-                message,
-                from: 'admin',
-                created_at: now,
-                createdAt: now
-            });
+            await db.from('messages').insert(payload);
             showNotification('Mesaj gönderildi.');
         } catch (e) {
             console.warn('adminSendMessage:', e);
@@ -1027,7 +1261,7 @@
     async function renderAdminDashboardStats(users) {
         document.getElementById('admin-total-users').textContent = users.length;
         document.getElementById('admin-total-sessions').textContent = users.reduce((sum, u) => sum + (u.sessions || u.sessionCount || u.sessionsCount || 0), 0);
-        const active = (await fetchActiveSessions()).filter(u => !hasAdminFlag(u)).length;
+        const active = (await fetchActiveSessions()).filter(u => !hasAdminFlag(u) && String(u.status || 'active').toLowerCase() === 'active').length;
         document.getElementById('admin-current-active').textContent = active;
     }
 
@@ -1084,6 +1318,12 @@
         const name = prompt(`${email} için yeni isim girin:`, '');
         if (name === null) return;
         try {
+            const backend = await callNetlifyAdminUser('updateUser', { userId, patch: { name } });
+            if (backend.ok) {
+                await loadAdminPanel();
+                showNotification('Kullanici bilgisi guncellendi.');
+                return;
+            }
             if (await updateFirestoreUser(userId, { name })) {
                 await loadAdminPanel();
                 showNotification('Kullanici bilgisi guncellendi.');
@@ -1140,7 +1380,7 @@
         const body = document.getElementById('session-log-body');
         if (!body) return;
         const sessions = await fetchActiveSessions();
-        const users = sessions.filter(u => !hasAdminFlag(u));
+        const users = sessions.filter(u => !hasAdminFlag(u) && String(u.status || 'active').toLowerCase() === 'active');
         if (!users.length) {
             body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Şu an aktif kullanıcı yok.</td></tr>';
             return;

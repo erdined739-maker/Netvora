@@ -6,7 +6,6 @@ functions/.env*
 !functions/.env.example
 functions/node_modules/
 .firebase/
-.vercel/
 .agents/
 .windsurf/
 skills-lock.json
@@ -15,6 +14,3 @@ email-test.html
 *.log
 supabase/.temp/
 github-upload/
-
-.vercel
-.env*
